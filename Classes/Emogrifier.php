@@ -81,6 +81,11 @@ class Emogrifier
     /**
      * @var string[]
      */
+    private $excludedSelectors = [];
+
+    /**
+     * @var string[]
+     */
     private $unprocessableHtmlTags = ['wbr'];
 
     /**
@@ -313,6 +318,16 @@ class Emogrifier
             $this->caches[self::CACHE_KEY_CSS][$cssKey] = $allSelectors;
         }
 
+        // Prepare the list of excluded nodes
+        $excludedNodes = [];
+        foreach ($this->excludedSelectors as $selectorString) {
+            foreach (explode(',', $selectorString) as $selector) {
+                foreach ($xpath->query($this->translateCSStoXpath(trim($selector))) as $node) {
+                    $excludedNodes[] = $node;
+                }
+            }
+        }
+
         foreach ($this->caches[self::CACHE_KEY_CSS][$cssKey] as $value) {
             // query the body for the xpath selector
             $nodesMatchingCssSelectors = $xpath->query($this->translateCssToXpath($value['selector']));
@@ -323,6 +338,15 @@ class Emogrifier
 
             /** @var \DOMElement $node */
             foreach ($nodesMatchingCssSelectors as $node) {
+                // Skip excluded nodes
+                if (!empty($excludedNodes)) {
+                    foreach ($excludedNodes as $excludedNode) {
+                        if ($excludedNode->isSameNode($node)) {
+                            continue 2;
+                        }
+                    }
+                }
+
                 // if it has a style attribute, get it, process it, and append (overwrite) new stuff
                 if ($node->hasAttribute('style')) {
                     // break it up into an associative array
@@ -460,6 +484,32 @@ class Emogrifier
         if ($key !== false) {
             unset($this->unprocessableHtmlTags[$key]);
         }
+    }
+
+    /**
+     * Adds a selector to exclude nodes from processing
+     *
+     * Any nodes that match the selector will not have their style altered.
+     *
+     * @param string $selector the selector to exclude, e.g., ".editor"
+     *
+     * @return void
+     */
+    public function addExcludedSelector($selector)
+    {
+        $this->excludedSelectors[] = $selector;
+    }
+
+    /**
+     * No longer exclude the nodes matching this selector.
+     *
+     * @param string $selector the selector to exclude, e.g., ".editor"
+     *
+     * @return void
+     */
+    public function removeExcludedSelector($selector)
+    {
+        $this->excludedSelectors = array_diff($this->excludedSelectors, [$selector]);
     }
 
     /**
