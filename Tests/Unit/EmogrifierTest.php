@@ -1564,6 +1564,9 @@ class EmogrifierTest extends \PHPUnit_Framework_TestCase
         self::assertContains(
             '<p style="margin: 0;"></p>',
             $html
+        );
+    }
+
     public function emogrifyReturnsCompleteHtmlDocument()
     {
         $this->subject->setHtml($this->html5DocumentType . '<html><body><p></p></body></html>');
