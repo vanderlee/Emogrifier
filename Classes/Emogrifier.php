@@ -290,7 +290,7 @@ class Emogrifier
             $allSelectors = [];
             foreach ($matches as $key => $selectorString) {
                 // if there is a blank definition, skip
-                if (trim($selectorString[2]) === '') {
+                if (ctype_space($selectorString[2])) {
                     continue;
                 }
 
@@ -304,8 +304,8 @@ class Emogrifier
                         continue;
                     }
 
-                    $allSelectors[] = ['selector' => trim($selector),
-                        'attributes' => trim($selectorString[2]),
+                    $allSelectors[] = ['selector' => $selector,
+                        'attributes' => $selectorString[2],
                         // keep track of where it appears in the file, since order is important
                         'line' => $key,
                     ];
@@ -577,13 +577,7 @@ class Emogrifier
      */
     private function normalizeStyleAttributes(\DOMElement $node)
     {
-        $normalizedOriginalStyle = preg_replace_callback(
-            '/[A-z\\-]+(?=\\:)/S',
-            function (array $m) {
-                return strtolower($m[0]);
-            },
-            $node->getAttribute('style')
-        );
+        $normalizedOriginalStyle = $node->getAttribute('style');
 
         // in order to not overwrite existing style attributes in the HTML, we
         // have to save the original HTML styles
@@ -632,7 +626,7 @@ class Emogrifier
         $combinedStyles = array_merge($oldStyles, $newStyles);
 
         foreach ($oldStyles as $attributeName => $attributeValue) {
-            if (isset($newStyles[$attributeName]) && strtolower(substr($attributeValue, -10)) === '!important') {
+            if (isset($newStyles[$attributeName]) && strtolower(substr(rtrim($attributeValue), -10)) === '!important') {
                 $combinedStyles[$attributeName] = $attributeValue;
             }
         }
@@ -644,7 +638,7 @@ class Emogrifier
 
         $style = '';
         foreach ($combinedStyles as $attributeName => $attributeValue) {
-            $style .= (strtolower(trim($attributeName)) . ': ' . trim($attributeValue) . '; ');
+            $style .= $attributeName . ': ' . rtrim($attributeValue) . '; ';
         }
         $trimmedStyle = rtrim($style, ' ');
 
@@ -912,7 +906,7 @@ class Emogrifier
             $search = ['\\#','\\.',''];
 
             foreach ($search as $s) {
-                if (trim($selector) === '') {
+                if (ctype_space($selector)) {
                     break;
                 }
                 $number = 0;
@@ -939,7 +933,7 @@ class Emogrifier
     {
         $cssSelector = ' ' . $paramCssSelector . ' ';
         $cssSelector = preg_replace_callback(
-            '/\\s+\\w+\\s+/',
+            '/\\s+\\w*[A-Z]\\w*\\s+/',
             function (array $matches) {
                 return strtolower($matches[0]);
             },
@@ -1102,10 +1096,12 @@ class Emogrifier
      */
     private function parseNth(array $match)
     {
-        if (in_array(strtolower($match[2]), ['even','odd'], true)) {
-            $index = strtolower($match[2]) === 'even' ? 0 : 1;
-            return [self::MULTIPLIER => 2, self::INDEX => $index];
-        } elseif (stripos($match[2], 'n') === false) {
+        $lowerMatch2 = strtolower($match[2]);
+        if ($lowerMatch2 === 'even') {
+            return [self::MULTIPLIER => 2, self::INDEX => 0];
+        } elseif ($lowerMatch2 === 'odd') {
+            return [self::MULTIPLIER => 2, self::INDEX => 1];
+        } elseif (strpos($lowerMatch2, 'n') === false) {
             // if there is a multiplier
             $index = (int) str_replace(' ', '', $match[2]);
             return [self::INDEX => $index];
@@ -1120,7 +1116,7 @@ class Emogrifier
 
             $multiplier = (int) str_ireplace('n', '', $multipleTerm);
 
-            if (!strlen($multiplier)) {
+            if ($multiplier[0] === null) {
                 $multiplier = 1;
             } elseif ($multiplier === 0) {
                 return [self::INDEX => $index];
